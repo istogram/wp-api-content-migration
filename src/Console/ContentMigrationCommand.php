@@ -106,6 +106,11 @@ class ContentMigrationCommand extends Command
         }
     }
 
+    /**
+     * Clear taxonomies (categories and tags)
+     *
+     * @return void
+     */
     public function clearTaxonomies()
     {
         $response = ContentMigration::clearTaxonomies();
@@ -113,6 +118,11 @@ class ContentMigrationCommand extends Command
         return $this->info($response);
     }
 
+    /**
+     * Clear media
+     *
+     * @return void
+     */
     public function clearMedia()
     {
         $response = ContentMigration::clearMedia();
@@ -120,6 +130,11 @@ class ContentMigrationCommand extends Command
         $this->info($response);
     }
 
+    /**
+     * Clear posts
+     *
+     * @return void
+     */
     public function clearPosts()
     {
         $response = ContentMigration::clearPosts();
@@ -127,6 +142,11 @@ class ContentMigrationCommand extends Command
         $this->info($response);
     }
 
+    /**
+     * Clear pages
+     *
+     * @return void
+     */
     public function clearPages()
     {
         $response = ContentMigration::clearPages();
@@ -134,6 +154,12 @@ class ContentMigrationCommand extends Command
         $this->info($response);
     }
 
+    /**
+     * Fetch data from WP API
+     *
+     * @param string $endpoint
+     * @return void
+     */
     public function fetchData($endpoint)
     {
         $response = wp_remote_get($endpoint);
@@ -147,6 +173,12 @@ class ContentMigrationCommand extends Command
         return json_decode(wp_remote_retrieve_body($response));
     }
 
+    /**
+     * Fetch total pages from WP API
+     *
+     * @param string $endpoint
+     * @return void
+     */
     public function fetchTotalPages($endpoint)
     {
         $response = wp_remote_get($endpoint);
@@ -160,6 +192,13 @@ class ContentMigrationCommand extends Command
         return wp_remote_retrieve_header($response, 'X-WP-TotalPages');
     }
 
+    /**
+     * Fetch page data from WP API
+     *
+     * @param string $endpoint
+     * @param int $page
+     * @return void
+     */
     public function fetchPageData($endpoint, $page)
     {
         $response = wp_remote_get($endpoint . '?page=' . $page);
@@ -173,9 +212,11 @@ class ContentMigrationCommand extends Command
         return json_decode(wp_remote_retrieve_body($response));
     }
     
-    /*
-    * Migrate categories
-    */
+    /**
+     * Migrate categories
+     *
+     * @return void
+     */
     public function migrateCategories()
     {
         $this->info('Migrating WP categories');
@@ -237,9 +278,11 @@ class ContentMigrationCommand extends Command
         $this->line('');
     }
 
-    /*
-    * Migrate tags
-    */
+    /**
+     * Migrate tags
+     *
+     * @return void
+     */
     public function migrateTags()
     {
         $this->info('Migrating tags');
@@ -284,6 +327,11 @@ class ContentMigrationCommand extends Command
         $this->line('');
     }
 
+    /**
+     * Migrate media
+     *
+     * @return void
+     */
     public function migrateMedia()
     {
         $this->info('Migrating media');
@@ -329,6 +377,11 @@ class ContentMigrationCommand extends Command
         $this->line('');
     }
 
+    /**
+     * Migrate posts
+     *
+     * @return void
+     */
     public function migratePosts()
     {
         $this->info('Migrating posts');
@@ -374,6 +427,11 @@ class ContentMigrationCommand extends Command
         $this->line('');
     }
 
+    /**
+     * Migrate pages
+     *
+     * @return void
+     */
     public function migratePages()
     {
         $this->info('Migrating pages');

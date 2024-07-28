@@ -24,9 +24,11 @@ class ContentMigration
         $this->app = $app;
     }
 
-    /*
-    * Clear WP taxonomies
-    */
+    /**
+     * Clear WP taxonomies
+     *
+     * @return void
+     */
     public function clearTaxonomies()
     {
         try {
@@ -60,9 +62,11 @@ class ContentMigration
         }
     }
 
-    /*
-    * Clear WP media
-    */
+    /**
+     * Clear WP media
+     *
+     * @return void
+     */
     public function clearMedia()
     {
         try{
@@ -98,9 +102,11 @@ class ContentMigration
         }
     }
 
-    /*
-    * Clear WP posts
-    */
+    /**
+     * Clear WP posts
+     *
+     * @return void
+     */
     public function clearPosts()
     {
         try{
@@ -124,9 +130,11 @@ class ContentMigration
         }
     }
 
-    /*
-    * Clear WP pages
-    */
+    /**
+     * Clear WP pages
+     *
+     * @return void
+     */
     public function clearPages()
     {
         try {
@@ -150,9 +158,12 @@ class ContentMigration
         }
     }
 
-    /*
-    * Create WP category
-    */
+    /**
+     * Create WP category
+     *
+     * @param object $category
+     * @return void
+     */
     public function createCategory($category)
     {
         $params = [
@@ -181,9 +192,12 @@ class ContentMigration
         }
     }
 
-    /*
-    * Create WP tag
-    */
+    /**
+     * Create WP tag
+     *
+     * @param object $tag
+     * @return void
+     */
     public function createTag($tag)
     {
         try {
@@ -200,9 +214,12 @@ class ContentMigration
         }
     }
 
-    /*
-    * Create WP media
-    */
+    /**
+     * Create WP media
+     *
+     * @param object $media
+     * @return void
+     */
     public function createMedia($media)
     {
         // set params
@@ -278,9 +295,12 @@ class ContentMigration
         }
     }
 
-    /*
-    * Create WP post
-    */
+    /**
+     * Create WP post
+     *
+     * @param object $post
+     * @return void
+     */
     public function createPost($post)
     {
         // set post content
@@ -375,9 +395,12 @@ class ContentMigration
         }
     }
 
-    /*
-    * Create WP page
-    */
+    /**
+     * Create WP page
+     *
+     * @param object $page
+     * @return void
+     */
     public function createPage($page)
     {
         // set page content
