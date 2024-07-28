@@ -1,0 +1,30 @@
+{
+  "name": "istogram/wp-api-content-migration",
+  "type": "package",
+  "description": "An Acorn package to migrate content from WP API to WP REST API",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Timos Zabetakis",
+      "email": "timoszab@gmail.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "istogram\\WpApiContentMigration\\": "src/"
+    }
+  },
+  "require": {
+    "php": "^8.0"
+  },
+  "extra": {
+    "acorn": {
+      "providers": [
+        "istogram\\WpApiContentMigration\\Providers\\ContentMigrationServiceProvider"
+      ],
+      "aliases": {
+        "ContentMigration": "istogram\\WpApiContentMigration\\Facades\\ContentMigration"
+      }
+    }
+  }
+}
