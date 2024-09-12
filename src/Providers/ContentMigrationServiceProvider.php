@@ -3,6 +3,7 @@
 namespace istogram\WpApiContentMigration\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use istogram\WpApiContentMigration\ClearContent;
 use istogram\WpApiContentMigration\Console\ContentMigrationCommand;
 use istogram\WpApiContentMigration\ContentMigration;
 
@@ -17,6 +18,10 @@ class ContentMigrationServiceProvider extends ServiceProvider
     {
         $this->app->singleton('ContentMigration', function () {
             return new ContentMigration($this->app);
+        });
+
+        $this->app->singleton('ClearContent', function () {
+            return new ClearContent($this->app);
         });
 
         $this->mergeConfigFrom(
@@ -41,5 +46,7 @@ class ContentMigrationServiceProvider extends ServiceProvider
         ]);
 
         $this->app->make('ContentMigration');
+
+        $this->app->make('ClearContent');
     }
 }

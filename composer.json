@@ -1,7 +1,7 @@
 {
   "name": "istogram/wp-api-content-migration",
   "type": "package",
-  "description": "An Acorn package to migrate content from WP API to WP REST API",
+  "description": "An Acorn package to migrate content from a WP API to a local WP installation",
   "license": "MIT",
   "authors": [
     {
@@ -23,6 +23,7 @@
         "istogram\\WpApiContentMigration\\Providers\\ContentMigrationServiceProvider"
       ],
       "aliases": {
+        "ClearContent": "istogram\\WpApiContentMigration\\Facades\\ClearContent",
         "ContentMigration": "istogram\\WpApiContentMigration\\Facades\\ContentMigration"
       }
     }

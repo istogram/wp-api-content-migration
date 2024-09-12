@@ -16,7 +16,6 @@ class ContentMigration
     /**
      * Create a new ContentMigration instance.
      *
-     * @param  \Roots\Acorn\Application  $app
      * @return void
      */
     public function __construct(Application $app)
@@ -25,143 +24,10 @@ class ContentMigration
     }
 
     /**
-     * Clear WP taxonomies
-     *
-     * @return void
-     */
-    public function clearTaxonomies()
-    {
-        try {
-            // delete all terms
-            $terms = get_terms([
-                'taxonomy' => 'category',
-                'hide_empty' => false,
-            ]);
-
-            foreach ($terms as $term) {
-                wp_delete_term($term->term_id, 'category');
-            }
-
-            $terms = get_terms([
-                'taxonomy' => 'post_tag',
-                'hide_empty' => false,
-            ]);
-
-            foreach ($terms as $term) {
-                wp_delete_term($term->term_id, 'post_tag');
-            }
-
-            // delete all term metadata
-            $this->app->db->table('termmeta')->where('meta_key', 'wp_api_prev_category_id')->delete();
-            $this->app->db->table('termmeta')->where('meta_key', 'wp_api_prev_tag_id')->delete();
-
-            // return response
-            return 'Taxonomies cleared';
-        } catch (\Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    /**
-     * Clear WP media
-     *
-     * @return void
-     */
-    public function clearMedia()
-    {
-        try{
-            // delete all media
-            $media = get_posts([
-                'post_type' => 'attachment',
-                'numberposts' => -1,
-                'post_status' => null,
-            ]);
-
-            foreach ($media as $medium) {
-                wp_delete_attachment($medium->ID, true);
-            }
-
-            // delete all media metadata
-            $this->app->db->table('postmeta')->where('meta_key', '_wp_attached_file')->delete();
-            $this->app->db->table('postmeta')->where('meta_key', '_wp_attachment_metadata')->delete();
-
-            // delete files in uploads directory
-            $uploads_dir = wp_upload_dir();
-
-            $files = glob($uploads_dir['basedir'] . '/*');
-
-            foreach ($files as $file) {
-                if (is_file($file)) {
-                    unlink($file);
-                }
-            }
-
-            return 'Media cleared';
-        } catch (\Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    /**
-     * Clear WP posts
-     *
-     * @return void
-     */
-    public function clearPosts()
-    {
-        try{
-            // delete all posts
-            $posts = get_posts([
-                'post_type' => 'post',
-                'numberposts' => -1,
-                'post_status' => null,
-            ]);
-
-            foreach ($posts as $post) {
-                wp_delete_post($post->ID, true);
-            }
-
-            // delete all post metadata
-            $this->app->db->table('postmeta')->where('meta_key', 'wp_api_prev_post_id')->delete();
-
-            return 'Posts cleared';
-        } catch (\Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    /**
-     * Clear WP pages
-     *
-     * @return void
-     */
-    public function clearPages()
-    {
-        try {
-            // delete all pages
-            $pages = get_posts([
-                'post_type' => 'page',
-                'numberposts' => -1,
-                'post_status' => null,
-            ]);
-
-            foreach ($pages as $page) {
-                wp_delete_post($page->ID, true);
-            }
-
-            // delete all page metadata
-            $this->app->db->table('postmeta')->where('meta_key', 'wp_api_prev_page_id')->delete();
-
-            return 'Pages cleared';
-        } catch (\Exception $e) {
-            return $e->getMessage();
-        }
-    }
-
-    /**
-     * Create WP category
+     * Create WP category. This method also sets the parent category if it exists.
      *
      * @param object $category
+     *
      * @return void
      */
     public function createCategory($category)
@@ -186,16 +52,16 @@ class ContentMigration
                 // save term meta for category
                 update_term_meta($term['term_id'], 'wp_api_prev_category_id', $category->id);
             }
-
         } catch (\Exception $e) {
-            $this->app->log->info("Error creating WP category : " . $e->getMessage());
+            $this->app->log->info('Error creating WP category : '.$e->getMessage());
         }
     }
 
     /**
-     * Create WP tag
+     * Create WP tag. This method also sets the slug for the tag.
      *
      * @param object $tag
+     *
      * @return void
      */
     public function createTag($tag)
@@ -208,16 +74,16 @@ class ContentMigration
 
             // save term meta for tag
             update_term_meta($term_id['term_id'], 'wp_api_prev_tag_id', $tag->id);
-
         } catch (\Exception $e) {
-            $this->app->log->info("Error creating WP tag : " . $e->getMessage());
+            $this->app->log->info('Error creating WP tag : '.$e->getMessage());
         }
     }
 
     /**
-     * Create WP media
+     * Create WP media. This method also sets the alt text for the media.
      *
      * @param object $media
+     *
      * @return void
      */
     public function createMedia($media)
@@ -225,10 +91,6 @@ class ContentMigration
         // set params
         $params = [
             'file' => $media->source_url,
-            'name' => $media->title->rendered,
-            'post_title' => $media->title->rendered,
-            'post_content' => $media->caption->rendered,
-            'post_mime_type' => $media->mime_type,
         ];
 
         try {
@@ -240,41 +102,44 @@ class ContentMigration
                 'numberposts' => 1,
             ]);
 
-            if(!empty($media_exists)) {
+            if (!empty($media_exists)) {
                 return;
             }
 
             // download to temp dir
-            $temp_file = download_url( $params['file'] );
+            $temp_file = download_url($params['file']);
 
-            if( is_wp_error( $temp_file ) ) {
+            if (is_wp_error($temp_file)) {
                 return false;
             }
 
             // move the temp file into the uploads directory
-            $file = array(
-                'name'     => basename( $params['file'] ),
-                'type'     => mime_content_type( $temp_file ),
+            $file = [
+                'name' => basename($params['file']),
+                'type' => mime_content_type($temp_file),
                 'tmp_name' => $temp_file,
-                'size'     => filesize( $temp_file ),
-            );
+                'size' => filesize($temp_file),
+            ];
 
             $upload = wp_handle_sideload(
                 $file,
-                array(
-                    'test_form'   => false // no needs to check 'action' parameter
-                )
+                [
+                    'test_form' => false, // no needs to check 'action' parameter
+                ]
             );
 
-            if( ! empty( $sideload[ 'error' ] ) ) {
+            if (!empty($sideload['error'])) {
                 return false;
             }
+
+            $caption = !empty($media->caption->rendered) ? $media->caption->rendered : $media->title->rendered;
+            $description = !empty($media->description->rendered) ? $media->description->rendered : $media->caption->rendered;
 
             // create attachment
             $attachment = [
                 'post_title' => $media->title->rendered,
-                'post_content' => sanitize_text_field($media->caption->rendered),
-                'post_excerpt' => sanitize_text_field($media->caption->rendered),
+                'post_excerpt' => sanitize_text_field($caption),
+                'post_content' => sanitize_text_field($description),
                 'post_status' => 'inherit',
                 'post_mime_type' => $media->mime_type,
             ];
@@ -285,20 +150,20 @@ class ContentMigration
             wp_update_attachment_metadata($attach_id, wp_generate_attachment_metadata($attach_id, $upload['file']));
 
             // save media meta
-            update_post_meta($attach_id, 'prev_featured_media_id', $media->id);
+            update_post_meta($attach_id, 'wp_api_prev_featured_media_id', $media->id);
 
             // update alt text
-            update_post_meta($attach_id, '_wp_attachment_image_alt', sanitize_text_field($media->caption->rendered));
-
+            update_post_meta($attach_id, '_wp_attachment_image_alt', sanitize_text_field($media->alt_text ?? $media->caption->rendered));
         } catch (\Exception $e) {
-            $this->app->log->info("Error creating WP media : " . $e->getMessage());
+            $this->app->log->info('Error creating WP media : '.$e->getMessage());
         }
     }
 
     /**
-     * Create WP post
+     * Create WP post. This method also sets the featured image, categories and tags.
      *
      * @param object $post
+     *
      * @return void
      */
     public function createPost($post)
@@ -308,11 +173,12 @@ class ContentMigration
 
         // find previous image urls and replace with new urls
         $content = preg_replace_callback('/<img[^>]+src="([^">]+)"/', function ($matches) use ($post) {
-            // get attachment_id for meta_key 'prev_featured_media_id'
-            $media_id = $this->app->db->table('postmeta')->where('meta_key', 'prev_featured_media_id')->where('meta_value', $post->featured_media)->value('post_id');
+            // get attachment_id for meta_key 'wp_api_prev_featured_media_id'
+            $media_id = $this->app->db->table('postmeta')->where('meta_key', 'wp_api_prev_featured_media_id')->where('meta_value', $post->featured_media)->value('post_id');
 
             if (!empty($media_id)) {
                 $media_url = wp_get_attachment_url($media_id);
+
                 return str_replace($matches[1], $media_url, $matches[0]);
             }
 
@@ -343,6 +209,9 @@ class ContentMigration
         // set post author
         $author = $post->author;
 
+        // set post created date
+        $created = $post->date;
+
         // set post categories from saved meta
         $categories = [];
 
@@ -357,15 +226,15 @@ class ContentMigration
         foreach ($post->tags as $tag) {
             // get term_id for meta_key 'wp_api_prev_tag_id'
             $tag_id = $this->app->db->table('termmeta')->where('meta_key', 'wp_api_prev_tag_id')->where('meta_value', $tag)->value('term_id');
-            
+
             // check if tag exists
             if (!empty($tag_id)) {
                 $tags[] = get_term($tag_id)->name;
             }
         }
 
-        // get attachment_id for meta_key 'source_url'
-        $media = $this->app->db->table('postmeta')->where('meta_key', 'prev_featured_media_id')->where('meta_value', $post->featured_media)->value('post_id');
+        // get post_id for meta_key 'wp_api_prev_featured_media_id'
+        $media = $this->app->db->table('postmeta')->where('meta_key', 'wp_api_prev_featured_media_id')->where('meta_value', $post->featured_media)->value('post_id');
 
         // set post meta
         $meta = $post->meta;
@@ -383,6 +252,7 @@ class ContentMigration
                 'post_category' => $categories,
                 'tags_input' => $tags,
                 'meta_input' => $meta,
+                'post_date' => $created,
             ]);
 
             // check if post has media
@@ -391,14 +261,15 @@ class ContentMigration
                 set_post_thumbnail($post_id, $media);
             }
         } catch (\Exception $e) {
-            $this->app->log->info("Error creating WP post : " . $e->getMessage());
+            $this->app->log->info('Error creating WP post : '.$e->getMessage());
         }
     }
 
     /**
-     * Create WP page
+     * Create WP page. This method also sets the parent page if it exists.
      *
      * @param object $page
+     *
      * @return void
      */
     public function createPage($page)
@@ -446,9 +317,8 @@ class ContentMigration
             }
 
             update_post_meta($page_id, 'wp_api_prev_page_id', $page->id);
-
         } catch (\Exception $e) {
-            $this->app->log->info("Error creating WP page : " . $e->getMessage());
+            $this->app->log->info('Error creating WP page : '.$e->getMessage());
         }
     }
 }
