@@ -21,6 +21,13 @@ class ContentMigration
     public function __construct(Application $app)
     {
         $this->app = $app;
+
+        if ($this->app['config']->get('content-migration.allow_svg_media')) {
+            add_filter( 'upload_mimes', function ( $mimes ){
+                $mimes['svg'] = 'image/svg+xml';
+                return $mimes;
+            });
+        }
     }
 
     /**
@@ -103,6 +110,7 @@ class ContentMigration
             ]);
 
             if (!empty($media_exists)) {
+                $this->app->log->info('Media already exists : '.$media->source_url);
                 return;
             }
 
@@ -110,6 +118,7 @@ class ContentMigration
             $temp_file = download_url($params['file']);
 
             if (is_wp_error($temp_file)) {
+                $this->app->log->info('Error downloading WP media : '.$temp_file->get_error_message());
                 return false;
             }
 

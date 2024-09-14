@@ -16,6 +16,16 @@ You can publish the config file with:
 wp acorn vendor:publish --provider="istogram\WpApiContentMigration\Providers\ContentMigrationServiceProvider"
 ```
 
+## Configuration
+
+### Allow SVG media uploads
+
+If you want to allow SVG media uploads you will need to set the config option:
+
+```php
+'allow_svg_media' => true
+```
+
 ## Usage
 
 To migrate WP content from a WP site, using the WP REST API, to the local site use this command replacing {domain} with the domain of the Live WP site :
