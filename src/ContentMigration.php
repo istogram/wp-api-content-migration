@@ -22,10 +22,10 @@ class ContentMigration
     {
         $this->app = $app;
 
-        if (!empty($this->app['config']->get('content-migration.mime_types'))) {
+        if (!empty($this->app['config']->get('content-migration.allow_media'))) {
             try {
-                add_filter('upload_mimes', function ($mimes) use ($mime_types) {
-                    foreach ($this->app['config']->get('content-migration.mime_types') as $key => $fileType) {
+                add_filter('upload_mimes', function ($mimes) {
+                    foreach ($this->app['config']->get('content-migration.allow_media') as $key => $fileType) {
                         $mimes[$key] = $fileType;
                     }
                     return $mimes;
