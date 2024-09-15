@@ -22,10 +22,14 @@ class ContentMigration
     {
         $this->app = $app;
 
-        if ($this->app['config']->get('content-migration.allow_svg_media')) {
-            add_filter( 'upload_mimes', function ( $mimes ){
-                $mimes['svg'] = 'image/svg+xml';
-                return $mimes;
+        $fileTypes = $this->app['config']->get('content-migration.allow_media');
+
+        if (!empty($fileTypes) && is_array($fileTypes) && $fileTypes !== false) {
+            add_filter('upload_mimes', function ($mimes) {
+                foreach ($fileTypes as $key => $fileType) {
+                    $mimes[$key] = $fileType;
+                    return $mimes;
+                }
             });
         }
     }
@@ -60,7 +64,7 @@ class ContentMigration
                 update_term_meta($term['term_id'], 'wp_api_prev_category_id', $category->id);
             }
         } catch (\Exception $e) {
-            $this->app->log->info('Error creating WP category : '.$e->getMessage());
+            $this->app->log->info('Error creating WP category : ' . $e->getMessage());
         }
     }
 
@@ -82,7 +86,7 @@ class ContentMigration
             // save term meta for tag
             update_term_meta($term_id['term_id'], 'wp_api_prev_tag_id', $tag->id);
         } catch (\Exception $e) {
-            $this->app->log->info('Error creating WP tag : '.$e->getMessage());
+            $this->app->log->info('Error creating WP tag : ' . $e->getMessage());
         }
     }
 
@@ -103,14 +107,14 @@ class ContentMigration
         try {
             // check if media exists
             $media_exists = get_posts([
-                'post_type' => 'attachment',
-                'meta_key' => 'source_url',
-                'meta_value' => $media->source_url,
+                'post_type'   => 'attachment',
+                'meta_key'    => 'source_url',
+                'meta_value'  => $media->source_url,
                 'numberposts' => 1,
             ]);
 
             if (!empty($media_exists)) {
-                $this->app->log->info('Media already exists : '.$media->source_url);
+                $this->app->log->info('Media already exists : ' . $media->source_url);
                 return;
             }
 
@@ -118,16 +122,16 @@ class ContentMigration
             $temp_file = download_url($params['file']);
 
             if (is_wp_error($temp_file)) {
-                $this->app->log->info('Error downloading WP media : '.$temp_file->get_error_message());
+                $this->app->log->info('Error downloading WP media : ' . $temp_file->get_error_message());
                 return false;
             }
 
             // move the temp file into the uploads directory
             $file = [
-                'name' => basename($params['file']),
-                'type' => mime_content_type($temp_file),
+                'name'     => basename($params['file']),
+                'type'     => mime_content_type($temp_file),
                 'tmp_name' => $temp_file,
-                'size' => filesize($temp_file),
+                'size'     => filesize($temp_file),
             ];
 
             $upload = wp_handle_sideload(
@@ -146,10 +150,10 @@ class ContentMigration
 
             // create attachment
             $attachment = [
-                'post_title' => $media->title->rendered,
-                'post_excerpt' => sanitize_text_field($caption),
-                'post_content' => sanitize_text_field($description),
-                'post_status' => 'inherit',
+                'post_title'     => $media->title->rendered,
+                'post_excerpt'   => sanitize_text_field($caption),
+                'post_content'   => sanitize_text_field($description),
+                'post_status'    => 'inherit',
                 'post_mime_type' => $media->mime_type,
             ];
 
@@ -164,7 +168,7 @@ class ContentMigration
             // update alt text
             update_post_meta($attach_id, '_wp_attachment_image_alt', sanitize_text_field($media->alt_text ?? $media->caption->rendered));
         } catch (\Exception $e) {
-            $this->app->log->info('Error creating WP media : '.$e->getMessage());
+            $this->app->log->info('Error creating WP media : ' . $e->getMessage());
         }
     }
 
@@ -251,17 +255,17 @@ class ContentMigration
         try {
             // create WP post
             $post_id = wp_insert_post([
-                'post_content' => $content,
-                'post_excerpt' => $excerpt,
-                'post_status' => $status,
-                'post_type' => $type,
-                'post_title' => $title,
-                'post_name' => $slug,
-                'post_author' => $author,
+                'post_content'  => $content,
+                'post_excerpt'  => $excerpt,
+                'post_status'   => $status,
+                'post_type'     => $type,
+                'post_title'    => $title,
+                'post_name'     => $slug,
+                'post_author'   => $author,
                 'post_category' => $categories,
-                'tags_input' => $tags,
-                'meta_input' => $meta,
-                'post_date' => $created,
+                'tags_input'    => $tags,
+                'meta_input'    => $meta,
+                'post_date'     => $created,
             ]);
 
             // check if post has media
@@ -270,7 +274,7 @@ class ContentMigration
                 set_post_thumbnail($post_id, $media);
             }
         } catch (\Exception $e) {
-            $this->app->log->info('Error creating WP post : '.$e->getMessage());
+            $this->app->log->info('Error creating WP post : ' . $e->getMessage());
         }
     }
 
@@ -312,12 +316,12 @@ class ContentMigration
             $page_id = wp_insert_post([
                 'post_content' => $content,
                 'post_excerpt' => $excerpt,
-                'post_status' => $status,
-                'post_type' => 'page',
-                'post_title' => $title,
-                'post_author' => $author,
-                'meta_input' => $meta,
-                'post_parent' => $parentId,
+                'post_status'  => $status,
+                'post_type'    => 'page',
+                'post_title'   => $title,
+                'post_author'  => $author,
+                'meta_input'   => $meta,
+                'post_parent'  => $parentId,
             ]);
 
             // save parent page to meta
@@ -327,7 +331,7 @@ class ContentMigration
 
             update_post_meta($page_id, 'wp_api_prev_page_id', $page->id);
         } catch (\Exception $e) {
-            $this->app->log->info('Error creating WP page : '.$e->getMessage());
+            $this->app->log->info('Error creating WP page : ' . $e->getMessage());
         }
     }
 }

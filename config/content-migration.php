@@ -23,10 +23,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Allow SVG media
+    | Allow media
     |--------------------------------------------------------------------------
     |
-    | Set to true to allow SVG media files to be imported.
+    | Set to allow diffrent non-standard WordPress files to be imported.
+    | allow_media => ['svg' => 'image/svg+xml']
     */
-    'allow_svg_media' => false,
+    'allow_media' => false,
 ];
