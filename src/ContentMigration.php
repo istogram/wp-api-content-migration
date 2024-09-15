@@ -22,17 +22,20 @@ class ContentMigration
     {
         $this->app = $app;
 
-        $fileTypes = $this->app['config']->get('content-migration.allow_media');
-
-        if (!empty($fileTypes) && is_array($fileTypes) && $fileTypes !== false) {
-            add_filter('upload_mimes', function ($mimes) {
-                foreach ($fileTypes as $key => $fileType) {
-                    $mimes[$key] = $fileType;
+        if (!empty($this->app['config']->get('content-migration.mime_types'))) {
+            try {
+                add_filter('upload_mimes', function ($mimes) use ($mime_types) {
+                    foreach ($this->app['config']->get('content-migration.mime_types') as $key => $fileType) {
+                        $mimes[$key] = $fileType;
+                    }
                     return $mimes;
-                }
-            });
+                });
+            } catch (\Exception $e) {
+                $this->app->log->info('Error with mime type : ' . $e->getMessage());
+            }
         }
     }
+
 
     /**
      * Create WP category. This method also sets the parent category if it exists.

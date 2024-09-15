@@ -20,7 +20,7 @@ wp acorn vendor:publish --provider="istogram\WpApiContentMigration\Providers\Con
 
 ### Allow non-standard media uploads
 
-If you want to allow non-standard media uploads you will need to set the config option:
+If you want to allow non-standard media uploads you will need to set the config option by default only WordPress standard media types are allowed. 
 
 ```php
 'allow_media' => [
