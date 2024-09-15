@@ -18,12 +18,14 @@ wp acorn vendor:publish --provider="istogram\WpApiContentMigration\Providers\Con
 
 ## Configuration
 
-### Allow SVG media uploads
+### Allow non-standard media uploads
 
-If you want to allow SVG media uploads you will need to set the config option:
+If you want to allow non-standard media uploads you will need to set the config option:
 
 ```php
-'allow_svg_media' => true
+'allow_media' => [
+  'svg' => 'image/svg+xml',
+],
 ```
 
 ## Usage
