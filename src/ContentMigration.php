@@ -23,7 +23,7 @@ class ContentMigration
         $this->app = $app;
 
         if ($this->app['config']->get('content-migration.allow_svg_media')) {
-            add_filter( 'upload_mimes', function ( $mimes ){
+            add_filter('upload_mimes', function ($mimes) {
                 $mimes['svg'] = 'image/svg+xml';
                 return $mimes;
             });
@@ -88,6 +88,7 @@ class ContentMigration
 
     /**
      * Create WP media. This method also sets the alt text for the media.
+     * Preserves the original directory structure from the source site.
      *
      * @param object $media
      *
@@ -122,24 +123,30 @@ class ContentMigration
                 return false;
             }
 
-            // move the temp file into the uploads directory
-            $file = [
-                'name' => basename($params['file']),
-                'type' => mime_content_type($temp_file),
-                'tmp_name' => $temp_file,
-                'size' => filesize($temp_file),
-            ];
+            // Extract the original path structure from source_url
+            // Example: https://example.com/wp-content/uploads/2023/05/image.jpg -> 2023/05/image.jpg
+            $upload_dir = wp_upload_dir();
+            $original_path = $this->extractUploadPath($media->source_url);
 
-            $upload = wp_handle_sideload(
-                $file,
-                [
-                    'test_form' => false, // no needs to check 'action' parameter
-                ]
-            );
+            // Build the target directory path
+            $target_dir = $upload_dir['basedir'] . '/' . dirname($original_path);
+            $target_file = $upload_dir['basedir'] . '/' . $original_path;
+            $target_url = $upload_dir['baseurl'] . '/' . $original_path;
 
-            if (!empty($sideload['error'])) {
+            // Create directory if it doesn't exist
+            if (!file_exists($target_dir)) {
+                wp_mkdir_p($target_dir);
+            }
+
+            // Move file to target location
+            if (!copy($temp_file, $target_file)) {
+                $this->app->log->info('Error moving file to target location: ' . $target_file);
+                @unlink($temp_file);
                 return false;
             }
+
+            // Clean up temp file
+            @unlink($temp_file);
 
             $caption = !empty($media->caption->rendered) ? $media->caption->rendered : $media->title->rendered;
             $description = !empty($media->description->rendered) ? $media->description->rendered : $media->caption->rendered;
@@ -151,21 +158,50 @@ class ContentMigration
                 'post_content' => sanitize_text_field($description),
                 'post_status' => 'inherit',
                 'post_mime_type' => $media->mime_type,
+                'guid' => $target_url,
             ];
 
-            $attach_id = wp_insert_attachment($attachment, $upload['file']);
+            $attach_id = wp_insert_attachment($attachment, $target_file);
 
             // set attachment metadata
-            wp_update_attachment_metadata($attach_id, wp_generate_attachment_metadata($attach_id, $upload['file']));
+            wp_update_attachment_metadata($attach_id, wp_generate_attachment_metadata($attach_id, $target_file));
 
             // save media meta
             update_post_meta($attach_id, 'wp_api_prev_featured_media_id', $media->id);
+            update_post_meta($attach_id, 'source_url', $media->source_url);
 
             // update alt text
             update_post_meta($attach_id, '_wp_attachment_image_alt', sanitize_text_field($media->alt_text ?? $media->caption->rendered));
         } catch (\Exception $e) {
             $this->app->log->info('Error creating WP media : '.$e->getMessage());
         }
+    }
+
+    /**
+     * Extract the upload path from a source URL
+     * Handles various URL structures to find the path after /uploads/
+     *
+     * @param string $source_url
+     * @return string
+     */
+    protected function extractUploadPath($source_url)
+    {
+        // Parse the URL
+        $parsed = parse_url($source_url);
+        $path = $parsed['path'];
+
+        // Find the position of /uploads/ in the path
+        $uploads_pos = strpos($path, '/uploads/');
+
+        if ($uploads_pos !== false) {
+            // Extract everything after /uploads/
+            return substr($path, $uploads_pos + strlen('/uploads/'));
+        }
+
+        // Fallback: if /uploads/ not found, use the basename with current year/month
+        // This maintains some structure even for edge cases
+        $upload_dir = wp_upload_dir();
+        return $upload_dir['subdir'] . '/' . basename($source_url);
     }
 
     /**
