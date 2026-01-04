@@ -42,6 +42,7 @@ class ContentMigrationCommand extends Command
                     $this->clearMedia();
                     $this->clearPosts();
                     $this->clearPages();
+                    $this->clearComments();
                 }
                 break;
             case false:
@@ -50,6 +51,7 @@ class ContentMigrationCommand extends Command
                 $this->confirmClear('media') ? $this->clearMedia() : null;
                 $this->confirmClear('posts') ? $this->clearPosts() : null;
                 $this->confirmClear('pages') ? $this->clearPages() : null;
+                $this->confirmClear('comments') ? $this->clearComments() : null;
                 break;
         }
 
@@ -61,6 +63,7 @@ class ContentMigrationCommand extends Command
                 $this->migrateMedia();
                 $this->migratePosts();
                 $this->migratePages();
+                $this->migrateComments();
                 $this->clearImportedMeta();
                 break;
             case false:
@@ -70,6 +73,7 @@ class ContentMigrationCommand extends Command
                 $this->confirmMigrate('media') ? $this->migrateMedia() : null;
                 $this->confirmMigrate('posts') ? $this->migratePosts() : null;
                 $this->confirmMigrate('pages') ? $this->migratePages() : null;
+                $this->confirmMigrate('comments') ? $this->migrateComments() : null;
                 break;
         }
     }
@@ -123,13 +127,25 @@ class ContentMigrationCommand extends Command
     }
 
     /**
+     * Clear comments. This will delete all comments and their metadata.
+     *
+     * @return void
+     */
+    public function clearComments()
+    {
+        $response = ClearContent::clearComments();
+
+        $this->info($response);
+    }
+
+    /**
      * Clear imported meta data.
      *
      * @return void
      */
     public function clearImportedMeta()
     {
-        $types = ['category', 'tag', 'featured_media', 'post', 'page'];
+        $types = ['category', 'tag', 'featured_media', 'post', 'page', 'comment'];
 
         foreach ($types as $type) {
             ClearContent::clearImportedMeta($type);
@@ -198,7 +214,7 @@ class ContentMigrationCommand extends Command
      *
      * @param string $endpoint
      *
-     * @return void
+     * @return int
      */
     public function fetchTotalPages($endpoint)
     {
@@ -208,10 +224,31 @@ class ContentMigrationCommand extends Command
             $error_message = $response->get_error_message();
             $this->error("Error: $error_message");
 
-            return;
+            return 0;
         }
 
-        return wp_remote_retrieve_header($response, 'X-WP-TotalPages');
+        return (int) wp_remote_retrieve_header($response, 'X-WP-TotalPages');
+    }
+
+    /**
+     * Fetch total items count from WP API.
+     *
+     * @param string $endpoint
+     *
+     * @return int
+     */
+    public function fetchTotalItems($endpoint)
+    {
+        $response = wp_remote_get($endpoint);
+
+        if (is_wp_error($response)) {
+            $error_message = $response->get_error_message();
+            $this->error("Error: $error_message");
+
+            return 0;
+        }
+
+        return (int) wp_remote_retrieve_header($response, 'X-WP-Total');
     }
 
     /**
@@ -249,14 +286,12 @@ class ContentMigrationCommand extends Command
         // set categories endpoint
         $categories_endpoint = $this->argument('domain').'/wp-json/wp/v2/categories';
 
-        // get categories
-        $categories = $this->fetchData($categories_endpoint);
-
-        // get total pages
+        // get total pages and items
         $total_pages = $this->fetchTotalPages($categories_endpoint);
+        $total_items = $this->fetchTotalItems($categories_endpoint);
 
-        // create progress bar
-        $progressBar = $this->output->createProgressBar($total_pages);
+        // create progress bar based on total items
+        $progressBar = $this->output->createProgressBar($total_items);
 
         // set progress bar format
         $progressBar->setFormat(config('content-migration.progress_bar_format'));
@@ -274,6 +309,7 @@ class ContentMigrationCommand extends Command
             // create parent categories
             foreach ($parent_categories as $category) {
                 ContentMigration::createCategory($category);
+                $progressBar->advance();
             }
 
             // filter child categories
@@ -284,14 +320,7 @@ class ContentMigrationCommand extends Command
             // create child categories
             foreach ($child_categories as $category) {
                 ContentMigration::createCategory($category);
-            }
-
-            // output progress
-            $progressBar->advance();
-
-            // break if last page
-            if ($page === $total_pages) {
-                break;
+                $progressBar->advance();
             }
         }
 
@@ -309,16 +338,15 @@ class ContentMigrationCommand extends Command
         $this->info('Migrating tags');
         $this->line('');
 
-        // get tags
+        // get tags endpoint
         $tags_endpoint = $this->argument('domain').'/wp-json/wp/v2/tags';
 
-        $tags = $this->fetchData($tags_endpoint);
-
-        // get total pages
+        // get total pages and items
         $total_pages = $this->fetchTotalPages($tags_endpoint);
+        $total_items = $this->fetchTotalItems($tags_endpoint);
 
-        // create progress bar
-        $progressBar = $this->output->createProgressBar($total_pages);
+        // create progress bar based on total items
+        $progressBar = $this->output->createProgressBar($total_items);
 
         // set progress bar format
         $progressBar->setFormat(config('content-migration.progress_bar_format'));
@@ -330,14 +358,7 @@ class ContentMigrationCommand extends Command
             // create tags
             foreach ($tags as $tag) {
                 ContentMigration::createTag($tag);
-            }
-
-            // output progress
-            $progressBar->advance();
-
-            // break if last page
-            if ($page === $total_pages) {
-                break;
+                $progressBar->advance();
             }
         }
 
@@ -358,14 +379,12 @@ class ContentMigrationCommand extends Command
         // set media endpoint
         $media_endpoint = $this->argument('domain').'/wp-json/wp/v2/media';
 
-        // get media
-        $media = $this->fetchData($media_endpoint);
-
-        // get total pages
+        // get total pages and items
         $total_pages = $this->fetchTotalPages($media_endpoint);
+        $total_items = $this->fetchTotalItems($media_endpoint);
 
-        // create progress bar
-        $progressBar = $this->output->createProgressBar($total_pages);
+        // create progress bar based on total items
+        $progressBar = $this->output->createProgressBar($total_items);
 
         // set progress bar format
         $progressBar->setFormat(config('content-migration.progress_bar_format'));
@@ -377,14 +396,7 @@ class ContentMigrationCommand extends Command
             // create media
             foreach ($media as $medium) {
                 ContentMigration::createMedia($medium);
-            }
-
-            // output progress
-            $progressBar->advance();
-
-            // break if last page
-            if ($page === $total_pages) {
-                break;
+                $progressBar->advance();
             }
         }
 
@@ -405,14 +417,12 @@ class ContentMigrationCommand extends Command
         // set posts endpoint
         $posts_endpoint = $this->argument('domain').'/wp-json/wp/v2/posts';
 
-        // get posts
-        $posts = $this->fetchData($posts_endpoint);
-
-        // get total pages
+        // get total pages and items
         $total_pages = $this->fetchTotalPages($posts_endpoint);
+        $total_items = $this->fetchTotalItems($posts_endpoint);
 
-        // create progress bar
-        $progressBar = $this->output->createProgressBar($total_pages);
+        // create progress bar based on total items
+        $progressBar = $this->output->createProgressBar($total_items);
 
         // set progress bar format
         $progressBar->setFormat(config('content-migration.progress_bar_format'));
@@ -424,14 +434,7 @@ class ContentMigrationCommand extends Command
             // create posts
             foreach ($posts as $post) {
                 ContentMigration::createPost($post);
-            }
-
-            // output progress
-            $progressBar->advance();
-
-            // break if last page
-            if ($page === $total_pages) {
-                break;
+                $progressBar->advance();
             }
         }
 
@@ -452,14 +455,12 @@ class ContentMigrationCommand extends Command
         // set endpoint
         $pages_endpoint = $this->argument('domain').'/wp-json/wp/v2/pages';
 
-        // get pages
-        $pages = $this->fetchData($pages_endpoint);
-
-        // get total pages
+        // get total pages and items
         $total_pages = $this->fetchTotalPages($pages_endpoint);
+        $total_items = $this->fetchTotalItems($pages_endpoint);
 
-        // create progress bar
-        $progressBar = $this->output->createProgressBar($total_pages);
+        // create progress bar based on total items
+        $progressBar = $this->output->createProgressBar($total_items);
 
         // set progress bar format
         $progressBar->setFormat(config('content-migration.progress_bar_format'));
@@ -476,6 +477,7 @@ class ContentMigrationCommand extends Command
             // create parent pages
             foreach ($parent_pages as $pageToMigrate) {
                 ContentMigration::createPage($pageToMigrate);
+                $progressBar->advance();
             }
 
             // filter child pages
@@ -486,19 +488,66 @@ class ContentMigrationCommand extends Command
             // create child pages
             foreach ($child_pages as $pageToMigrate) {
                 ContentMigration::createPage($pageToMigrate);
-            }
-
-            // output progress
-            $progressBar->advance();
-
-            // break if last page
-            if ($page === $total_pages) {
-                break;
+                $progressBar->advance();
             }
         }
 
         $progressBar->finish();
         $this->printFormattedEndMessage('Migrated pages');
+    }
+
+    /**
+     * Migrate comments. This method is used to migrate approved comments from WP API.
+     *
+     * @return void
+     */
+    public function migrateComments()
+    {
+        $this->info('Migrating comments');
+        $this->line('');
+
+        // set comments endpoint (only approved comments are returned by default for unauthenticated requests)
+        $comments_endpoint = $this->argument('domain').'/wp-json/wp/v2/comments';
+
+        // get total pages and items
+        $total_pages = $this->fetchTotalPages($comments_endpoint);
+        $total_items = $this->fetchTotalItems($comments_endpoint);
+
+        // create progress bar based on total items
+        $progressBar = $this->output->createProgressBar($total_items);
+
+        // set progress bar format
+        $progressBar->setFormat(config('content-migration.progress_bar_format'));
+
+        // loop through all pages
+        for ($page = 1; $page <= $total_pages; ++$page) {
+            $comments = $this->fetchPageData($comments_endpoint, $page);
+
+            // filter root comments (no parent)
+            $root_comments = array_filter($comments, function ($comment) {
+                return $comment->parent === 0;
+            });
+
+            // create root comments first
+            foreach ($root_comments as $comment) {
+                ContentMigration::createComment($comment);
+                $progressBar->advance();
+            }
+
+            // filter child comments (have parent)
+            $child_comments = array_filter($comments, function ($comment) {
+                return $comment->parent !== 0;
+            });
+
+            // create child comments
+            foreach ($child_comments as $comment) {
+                ContentMigration::createComment($comment);
+                $progressBar->advance();
+            }
+        }
+
+        $progressBar->finish();
+        $this->printFormattedEndMessage('Migrated comments');
     }
 
     /**

@@ -159,6 +159,32 @@ class ClearContent
     }
 
     /**
+     * Clear WP comments. This will delete all comments and their metadata.
+     *
+     * @return void
+     */
+    public function clearComments()
+    {
+        try {
+            // delete all comments
+            $comments = get_comments([
+                'number' => 0,
+            ]);
+
+            foreach ($comments as $comment) {
+                wp_delete_comment($comment->comment_ID, true);
+            }
+
+            // delete all comment metadata
+            $this->clearImportedMeta('comment');
+
+            return 'Comments cleared';
+        } catch (\Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    /**
      * Clear imported meta data. This method is used to clear meta data
      * that was imported from WP API.
      *
@@ -182,6 +208,9 @@ class ClearContent
             case 'page':
                 $this->app->db->table('postmeta')->where('meta_key', 'wp_api_prev_page_id')->delete();
                 $this->app->db->table('postmeta')->where('meta_key', 'wp_api_prev_page_parent_id')->delete();
+                break;
+            case 'comment':
+                $this->app->db->table('commentmeta')->where('meta_key', 'wp_api_prev_comment_id')->delete();
                 break;
         }
     }

@@ -74,13 +74,20 @@ class ContentMigration
     public function createTag($tag)
     {
         try {
-            // create WP term using name and slug
-            $term_id = wp_insert_term($tag->name, 'post_tag', [
-                'slug' => $tag->slug,
-            ]);
+            // check if tag exists
+            $tag_exists = get_term_by('slug', $tag->slug, 'post_tag');
 
-            // save term meta for tag
-            update_term_meta($term_id['term_id'], 'wp_api_prev_tag_id', $tag->id);
+            if (empty($tag_exists)) {
+                // create WP term using name and slug
+                $term = wp_insert_term($tag->name, 'post_tag', [
+                    'slug' => $tag->slug,
+                ]);
+
+                if (!is_wp_error($term)) {
+                    // save term meta for tag
+                    update_term_meta($term['term_id'], 'wp_api_prev_tag_id', $tag->id);
+                }
+            }
         } catch (\Exception $e) {
             $this->app->log->info('Error creating WP tag : '.$e->getMessage());
         }
@@ -305,6 +312,9 @@ class ContentMigration
                 // add featured image to post
                 set_post_thumbnail($post_id, $media);
             }
+
+            // save post meta for comment migration
+            update_post_meta($post_id, 'wp_api_prev_post_id', $post->id);
         } catch (\Exception $e) {
             $this->app->log->info('Error creating WP post : '.$e->getMessage());
         }
@@ -364,6 +374,63 @@ class ContentMigration
             update_post_meta($page_id, 'wp_api_prev_page_id', $page->id);
         } catch (\Exception $e) {
             $this->app->log->info('Error creating WP page : '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Create WP comment. This method also sets the parent comment if it exists.
+     *
+     * @param object $comment
+     *
+     * @return void
+     */
+    public function createComment($comment)
+    {
+        // get post_id for meta_key 'wp_api_prev_post_id'
+        $post_id = $this->app->db->table('postmeta')
+            ->where('meta_key', 'wp_api_prev_post_id')
+            ->where('meta_value', $comment->post)
+            ->value('post_id');
+
+        // skip if post doesn't exist
+        if (empty($post_id)) {
+            $this->app->log->info('Skipping comment - post not found for original post ID: '.$comment->post);
+            return;
+        }
+
+        // get parent comment id if this is a reply
+        $parent_id = 0;
+        if ($comment->parent !== 0) {
+            $parent_id = $this->app->db->table('commentmeta')
+                ->where('meta_key', 'wp_api_prev_comment_id')
+                ->where('meta_value', $comment->parent)
+                ->value('comment_id');
+
+            // if parent not found, set to 0
+            if (empty($parent_id)) {
+                $parent_id = 0;
+            }
+        }
+
+        try {
+            // create WP comment
+            $comment_id = wp_insert_comment([
+                'comment_post_ID' => $post_id,
+                'comment_author' => $comment->author_name ?? '',
+                'comment_author_email' => $comment->author_email ?? '',
+                'comment_author_url' => $comment->author_url ?? '',
+                'comment_content' => $comment->content->rendered,
+                'comment_date' => $comment->date,
+                'comment_approved' => 1,
+                'comment_parent' => $parent_id,
+            ]);
+
+            // save comment meta
+            if ($comment_id) {
+                update_comment_meta($comment_id, 'wp_api_prev_comment_id', $comment->id);
+            }
+        } catch (\Exception $e) {
+            $this->app->log->info('Error creating WP comment : '.$e->getMessage());
         }
     }
 }
