@@ -197,16 +197,18 @@ class ContentMigrationCommand extends Command
      */
     public function fetchData($endpoint)
     {
-        $response = wp_remote_get($endpoint);
+        $response = wp_remote_get($endpoint, [
+            'timeout' => 30,
+        ]);
 
         if (is_wp_error($response)) {
             $error_message = $response->get_error_message();
             $this->error("Error: $error_message");
 
-            return;
+            return [];
         }
 
-        return json_decode(wp_remote_retrieve_body($response));
+        return json_decode(wp_remote_retrieve_body($response)) ?? [];
     }
 
     /**
@@ -218,7 +220,9 @@ class ContentMigrationCommand extends Command
      */
     public function fetchTotalPages($endpoint)
     {
-        $response = wp_remote_get($endpoint);
+        $response = wp_remote_get($endpoint, [
+            'timeout' => 30,
+        ]);
 
         if (is_wp_error($response)) {
             $error_message = $response->get_error_message();
@@ -239,7 +243,9 @@ class ContentMigrationCommand extends Command
      */
     public function fetchTotalItems($endpoint)
     {
-        $response = wp_remote_get($endpoint);
+        $response = wp_remote_get($endpoint, [
+            'timeout' => 30,
+        ]);
 
         if (is_wp_error($response)) {
             $error_message = $response->get_error_message();
@@ -261,16 +267,18 @@ class ContentMigrationCommand extends Command
      */
     public function fetchPageData($endpoint, $page)
     {
-        $response = wp_remote_get($endpoint.'?page='.$page);
+        $response = wp_remote_get($endpoint.'?page='.$page, [
+            'timeout' => 30,
+        ]);
 
         if (is_wp_error($response)) {
             $error_message = $response->get_error_message();
             $this->error("Error: $error_message");
 
-            return;
+            return [];
         }
 
-        return json_decode(wp_remote_retrieve_body($response));
+        return json_decode(wp_remote_retrieve_body($response)) ?? [];
     }
 
     /**
